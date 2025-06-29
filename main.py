@@ -58,7 +58,7 @@ def predict(data: BudgetInput):
         daily_avg = total_spent / days_so_far if days_so_far else 0
         forecast = round(daily_avg * days_in_month, 2)
 
-    overspending = forecast > suggested_budget
+    overspending = bool(forecast > suggested_budget)
 
     # ------------------------------
     # Final Tips
