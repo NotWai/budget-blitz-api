@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime
-import pandas as pd
 import pickle
+import calendar
 
 app = FastAPI()
 model = pickle.load(open("budget_model.pkl", "rb"))
@@ -23,7 +23,7 @@ def predict(data: BudgetInput):
     suggested_budget = round(prediction, 2)
 
     # ------------------------------
-    # Category-Based Analysis (Existing)
+    # Category-Based Analysis
     category_totals = {}
     for exp in data.expenses:
         category_totals[exp.category] = category_totals.get(exp.category, 0) + exp.amount
@@ -41,20 +41,21 @@ def predict(data: BudgetInput):
             )
 
     # ------------------------------
-    # Forecasting Future Expenses
-    df = pd.DataFrame([e.dict() for e in data.expenses])
-    df['date'] = pd.to_datetime(df['date'])
-
-    if df.empty:
-        forecast = 0
+    # Forecasting Future Expenses (without pandas)
+    if not data.expenses:
+        forecast = 0.0
     else:
-        df['day'] = df['date'].dt.day
-        total_spent = df['amount'].sum()
-        days_so_far = df['date'].dt.day.nunique()
-        today = datetime.today()
-        days_in_month = pd.Period(today.strftime('%Y-%m')).days_in_month
+        parsed_dates = [datetime.fromisoformat(e.date) for e in data.expenses]
+        amounts = [e.amount for e in data.expenses]
 
-        daily_avg = total_spent / days_so_far
+        total_spent = sum(amounts)
+        unique_days = set(d.date() for d in parsed_dates)
+        days_so_far = len(unique_days)
+
+        today = datetime.today()
+        days_in_month = calendar.monthrange(today.year, today.month)[1]
+
+        daily_avg = total_spent / days_so_far if days_so_far else 0
         forecast = round(daily_avg * days_in_month, 2)
 
     overspending = forecast > suggested_budget
