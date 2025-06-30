@@ -2,16 +2,21 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime
-import pickle
+from sklearn.linear_model import LinearRegression
 import calendar
 
 app = FastAPI()
-model = pickle.load(open("budget_model.pkl", "rb"))
+
+X = [[s] for s in range(300, 2600, 200)]
+y = [round(s[0] * 0.75) for s in X] 
+model = LinearRegression().fit(X, y)
+
+print("✅ AI model trained using 75% savings logic.")
 
 class ExpenseItem(BaseModel):
     category: str
     amount: float
-    date: str  # ISO format from Flutter
+    date: str 
 
 class BudgetInput(BaseModel):
     savings: float
@@ -19,11 +24,11 @@ class BudgetInput(BaseModel):
 
 @app.post("/predict")
 def predict(data: BudgetInput):
+    # 🧠 Budget prediction
     prediction = model.predict([[data.savings]])[0]
     suggested_budget = round(prediction, 2)
 
-    # ------------------------------
-    # Category-Based Analysis
+    # 📊 Category analysis
     category_totals = {}
     for exp in data.expenses:
         category_totals[exp.category] = category_totals.get(exp.category, 0) + exp.amount
@@ -40,8 +45,7 @@ def predict(data: BudgetInput):
                 f"Nice job keeping {category.lower()} costs low!"
             )
 
-    # ------------------------------
-    # Forecasting Future Expenses (without pandas)
+    # 📅 Forecasting total monthly spend
     if not data.expenses:
         forecast = 0.0
     else:
@@ -58,10 +62,9 @@ def predict(data: BudgetInput):
         daily_avg = total_spent / days_so_far if days_so_far else 0
         forecast = round(daily_avg * days_in_month, 2)
 
-    overspending = bool(forecast > suggested_budget)
+    overspending = forecast > suggested_budget
 
-    # ------------------------------
-    # Final Tips
+    # 💡 AI Tips
     base_tips = [
         f"Try to keep your total monthly expenses under RM {suggested_budget}.",
         "Save at least 20% of your savings if possible.",
