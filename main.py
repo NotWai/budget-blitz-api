@@ -79,3 +79,6 @@ def predict(data: BudgetInput):
         "overspending": overspending,
         "recommendations": base_tips + personalized + [forecast_tip]
     }
+
+model = pickle.load(open("budget_model.pkl", "rb"))
+print("✅ Loaded model coefficient:", model.coef_)
