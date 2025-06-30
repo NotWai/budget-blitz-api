@@ -2,21 +2,19 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime
-from sklearn.linear_model import LinearRegression
+import pickle
 import calendar
 
 app = FastAPI()
 
-X = [[s] for s in range(300, 2600, 200)]
-y = [round(s[0] * 0.75) for s in X] 
-model = LinearRegression().fit(X, y)
+# Load the trained model
+model = pickle.load(open("budget_model.pkl", "rb"))
 
-print("✅ AI model trained using 75% savings logic.")
-
+# Define input structures
 class ExpenseItem(BaseModel):
     category: str
     amount: float
-    date: str 
+    date: str  # ISO format from Flutter
 
 class BudgetInput(BaseModel):
     savings: float
@@ -24,11 +22,12 @@ class BudgetInput(BaseModel):
 
 @app.post("/predict")
 def predict(data: BudgetInput):
-    # 🧠 Budget prediction
+    # Prediction from savings
     prediction = model.predict([[data.savings]])[0]
     suggested_budget = round(prediction, 2)
 
-    # 📊 Category analysis
+    # --------------------------
+    # Category-Based Suggestions
     category_totals = {}
     for exp in data.expenses:
         category_totals[exp.category] = category_totals.get(exp.category, 0) + exp.amount
@@ -45,7 +44,8 @@ def predict(data: BudgetInput):
                 f"Nice job keeping {category.lower()} costs low!"
             )
 
-    # 📅 Forecasting total monthly spend
+    # --------------------------
+    # Forecasting This Month
     if not data.expenses:
         forecast = 0.0
     else:
@@ -62,13 +62,14 @@ def predict(data: BudgetInput):
         daily_avg = total_spent / days_so_far if days_so_far else 0
         forecast = round(daily_avg * days_in_month, 2)
 
-    overspending = forecast > suggested_budget
+    overspending = bool(forecast > suggested_budget)  # ✅ CONVERTED TO NATIVE BOOL
 
-    # 💡 AI Tips
+    # --------------------------
+    # Final Suggestions
     base_tips = [
         f"Try to keep your total monthly expenses under RM {suggested_budget}.",
         "Save at least 20% of your savings if possible.",
-        "Cut down on non-essential expenses like shopping or entertainment."
+        "Cut down on non-essential expenses like shopping or entertainment.",
     ]
 
     forecast_tip = f"At your current pace, you're projected to spend RM {forecast} this month."
